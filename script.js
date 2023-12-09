@@ -17,14 +17,18 @@ let highScore = 0;
 let gameInterval;
 let gameSpeedDelay = 200;
 let isGameRunning = false;
-let currentScore = 0;
+
+// Object to keep score in memory
+const STORE = {
+  score: snake.length - 1,
+  previousKey: '',
+};
 
 // Draw game, map, snake, food
 function draw() {
   board.innerHTML = '';
   drawSnake();
   drawFood();
-  updateScore();
 }
 
 //Draw snake
@@ -38,9 +42,9 @@ function drawSnake() {
 
 // Create a snake or food cube/div
 function createGameElement(tag, className) {
-  const el = document.createElement(tag);
-  el.className = className;
-  return el;
+  const HTMLelement = document.createElement(tag);
+  HTMLelement.className = className;
+  return HTMLelement;
 }
 
 // Set position of snake or food
@@ -61,8 +65,20 @@ function drawFood() {
 
 // Generate food coordinates
 function generateFood() {
-  const x = Math.floor(Math.random() * gridSize) + 1;
-  const y = Math.floor(Math.random() * gridSize) + 1;
+  let x = Math.floor(Math.random() * gridSize) + 1;
+  let y = Math.floor(Math.random() * gridSize) + 1;
+
+  // Loop check if food el occupied same cluster with snake body
+  // And would redraw food el if it is
+  for (let i = 1; i < snake.length; i++) {
+    if (
+      (x === snake[i].x || x === snake[i].y) &&
+      (y === snake[i].x || y === snake[i].y)
+    ) {
+      x = y = 0;
+      generateFood();
+    }
+  }
   return { x, y };
 }
 
@@ -89,10 +105,11 @@ function move() {
 
   // If snake hits food last segment wouldn't be deleted and snake would grow! =)
   if (head.x === food.x && head.y === food.y) {
+    updateScore();
     food = generateFood();
-    increaseSpeed();
     //deleting old interval and set new one to increase speed
     clearInterval(gameInterval);
+    increaseSpeed();
     gameInterval = setInterval(() => {
       move();
       checkCollision();
@@ -121,30 +138,70 @@ function startGame() {
 function handleKeyEvent(event) {
   event.preventDefault();
 
-  // event.key and .code conditions works for different browsers
+  // Those .key and .code conditions exists cuz of browser difference
   if (
     (!isGameRunning && event.code === 'Space') ||
     (!isGameRunning && event.key === 'Space')
   ) {
     startGame();
   } else {
-    switch (event.key) {
-      case 'ArrowUp': {
-        direction = 'up';
-        break;
-      }
-      case 'ArrowDown': {
-        direction = 'down';
-        break;
-      }
-      case 'ArrowLeft': {
-        direction = 'left';
-        break;
-      }
-      case 'ArrowRight': {
-        direction = 'right';
-        break;
-      }
+    snake.length > 1
+      ? setDirectionForLongerSnake(event.key)
+      : setDirection(event.key);
+  }
+}
+
+function setDirection(key) {
+  switch (key) {
+    case 'ArrowUp': {
+      direction = 'up';
+      STORE.previousKey = key;
+      break;
+    }
+    case 'ArrowDown': {
+      direction = 'down';
+      STORE.previousKey = key;
+      break;
+    }
+    case 'ArrowLeft': {
+      direction = 'left';
+      STORE.previousKey = key;
+      break;
+    }
+    case 'ArrowRight': {
+      direction = 'right';
+      STORE.previousKey = key;
+      break;
+    }
+  }
+}
+
+// This monstrosity will prevent gamer to send snake backward after snake longer than 1 segment
+function setDirectionForLongerSnake(key) {
+  switch (key) {
+    case 'ArrowUp': {
+      if (STORE.previousKey === 'ArrowDown') break;
+      direction = 'up';
+      STORE.previousKey = key;
+      break;
+    }
+    case 'ArrowDown': {
+      if (STORE.previousKey === 'ArrowUp') break;
+      direction = 'down';
+      STORE.previousKey = key;
+      break;
+    }
+    case 'ArrowLeft': {
+      if (STORE.previousKey === 'ArrowRight') break;
+      direction = 'left';
+      STORE.previousKey = key;
+      break;
+    }
+    case 'ArrowRight': {
+      if (STORE.previousKey === 'ArrowLeft') break;
+      direction = 'right';
+      STORE.previousKey = key;
+      break;
     }
   }
 }
@@ -152,12 +209,15 @@ function handleKeyEvent(event) {
 document.addEventListener('keyup', handleKeyEvent);
 
 function increaseSpeed() {
+  if (gameSpeedDelay === 20) {
+    return;
+  }
   if (gameSpeedDelay > 150) {
     gameSpeedDelay -= 7;
   } else if (gameSpeedDelay > 100) {
     gameSpeedDelay -= 5;
   } else if (gameSpeedDelay > 50) {
-    gameSpeedDelay -= 2;
+    gameSpeedDelay -= 3;
   } else if (gameSpeedDelay > 25) {
     gameSpeedDelay -= 1;
   }
@@ -170,9 +230,35 @@ function checkCollision() {
   }
 
   for (let i = 1; i < snake.length; i++) {
-    if (head.x === snake[i.x] && snake.y === snake[i].y) {
+    if (head.x === snake[i].x && head.y === snake[i].y) {
       resetGame();
     }
+  }
+}
+
+function updateScore() {
+  if (gameSpeedDelay > 150) {
+    STORE.score += 5;
+  }
+  if (gameSpeedDelay < 150) {
+    STORE.score += 10;
+  }
+  if (gameSpeedDelay < 100) {
+    STORE.score += 20;
+  }
+  if (gameSpeedDelay < 50) {
+    STORE.score += 50;
+  }
+
+  scoreText.textContent = STORE.score.toString().padStart(3, '0');
+}
+
+function updateHighScore() {
+  if (STORE.score > highScore) {
+    highScore = STORE.score;
+    highScoreText.textContent = highScore.toString().padStart(3, '0');
+    highScoreText.style.display = 'block';
+    highScoreText.style.animationPlayState = 'running';
   }
 }
 
@@ -183,13 +269,8 @@ function resetGame() {
   food = generateFood();
   direction = 'right';
   gameSpeedDelay = 200;
-  updateScore();
+  // updateScore();
   scoreText.textContent = '000';
-}
-
-function updateScore() {
-  const currentScore = snake.length - 1;
-  scoreText.textContent = currentScore.toString().padStart(3, '0');
 }
 
 function stopGame() {
@@ -197,15 +278,4 @@ function stopGame() {
   isGameRunning = false;
   instructionsText.style.display = 'block';
   logo.style.display = 'block';
-}
-
-function updateHighScore() {
-  const currentScore = snake.length - 1;
-  if (currentScore > highScore) {
-    highScore = currentScore;
-    highScoreText.textContent = highScore.toString().padStart(3, '0');
-    highScoreText.style.display = 'block';
-    highScoreText.style.animationPlayState = 'running';
-    console.log(highScoreText.style.animation);
-  }
 }
