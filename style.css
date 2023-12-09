@@ -43,7 +43,7 @@ h1 {
   font-size: 1.225rem;
 }
 
-#game-board {
+#gameBoard {
   margin: 5px;
   display: grid;
   grid-template-columns: repeat(20, 20px);
@@ -68,8 +68,28 @@ h1 {
   box-shadow: inset 0 0 0 5px #8b966c;
 }
 
-#scores {
+#currentScore {
   color: #abb78a;
+}
+
+@keyframes highscore {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#highScore {
+  display: none;
+  color: hsl(77, 35%, 78%);
+  transition: opacity 300ms, transform 200ms;
+  animation: highscore 1s forwards;
+  text-underline-offset: 8px;
+  text-decoration: hsl(77, 35%, 78%) dashed underline;
 }
 
 .boarder-3,
